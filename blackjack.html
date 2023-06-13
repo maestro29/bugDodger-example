@@ -111,15 +111,22 @@
   <span id="balance" style="margin-right: 10px; font-size: 18px">총 자산 : </span><input type="number" id="betAmount" placeholder="배팅 금액" style="width:90px; height: 30px;font-size: 18px;margin-left: 50px"> $
 
   <script>
-    // JavaScript 코드
-    // JavaScript 코드
+    
     // 카드 덱 생성
     var suits = ["♠", "◆", "♥", "♣"];
     var ranks = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
     var deck = [];
+    var dealButtons = [];
+    var hitButtons = [];
+    var doubleButtons = [];
+    var splitButtons = [];
+    var stayButtons = [];
+
     var balance = 10;
     var betAmount = 0;
     var roundComplete = false;
+    var disableDouble = false;
+    var index = 0;
 
     createFullDeck();
     updateDeckCount();
@@ -128,18 +135,19 @@
     // 새로운 게임 시작
     var dealerHand = [];
     var playerHand = [];
+    playerHand.push([]);
 
-    drawPlayerTable();
-    //drawPlayerTable();
+    drawPlayerTable(0);
+    addButtonEvent(0);
     
-    function drawPlayerTable() {
+    function drawPlayerTable(index) {
       // player-table을 생성합니다.
       var playerTableDiv = document.createElement("div");
-      playerTableDiv.setAttribute("id", "player-table");
+      playerTableDiv.setAttribute("id", "player-table" + index);
 
       // player-cards를 생성하고 내부 텍스트와 스타일을 설정합니다.
       var playerCardsDiv = document.createElement("div");
-      playerCardsDiv.setAttribute("id", "player-cards");
+      playerCardsDiv.setAttribute("id", "player-cards" + index);
 
       var h2 = document.createElement("h2");
       h2.textContent = "플레이어 카드:";
@@ -152,25 +160,25 @@
 
       // player-hand, player-result 등의 하위 요소들을 생성하고 추가합니다.
       var playerHandDiv = document.createElement("div");
-      playerHandDiv.setAttribute("id", "player-hand");
+      playerHandDiv.setAttribute("id", "player-hand" + index);
       playerHandDiv.classList.add("card-container");
       flexDiv.appendChild(playerHandDiv);
 
       var playerResultP = document.createElement("p");
-      playerResultP.setAttribute("id", "player-result");
+      playerResultP.setAttribute("id", "player-result" + index);
       playerResultP.classList.add("result");
       flexDiv.appendChild(playerResultP);
 
       var playerHandTextP = document.createElement("p");
-      playerHandTextP.setAttribute("id", "player-hand-text");
+      playerHandTextP.setAttribute("id", "player-hand-text" + index);
       playerCardsDiv.appendChild(playerHandTextP);
 
       // player-cards를 player-table에 추가합니다.
       playerTableDiv.appendChild(playerCardsDiv);
 
-      // deal-button, hit-button, double-button, stay-button을 생성하고 추가합니다.
+      // deal-button, hit-button, double-button, split-button, stay-button을 생성하고 추가합니다.
       var dealButton = document.createElement("button");
-      dealButton.setAttribute("id", "deal-button");
+      dealButton.setAttribute("id", "deal-button" + index);
       dealButton.classList.add("button");
       dealButton.textContent = "Deal";
       playerTableDiv.appendChild(dealButton);
@@ -178,7 +186,7 @@
       playerTableDiv.appendChild(document.createTextNode(" ")); // 한 칸 공백을 추가
 
       var hitButton = document.createElement("button");
-      hitButton.setAttribute("id", "hit-button");
+      hitButton.setAttribute("id", "hit-button" + index);
       hitButton.classList.add("button");
       hitButton.textContent = "Hit";
       playerTableDiv.appendChild(hitButton);
@@ -186,15 +194,23 @@
       playerTableDiv.appendChild(document.createTextNode(" ")); // 한 칸 공백을 추가
 
       var doubleButton = document.createElement("button");
-      doubleButton.setAttribute("id", "double-button");
+      doubleButton.setAttribute("id", "double-button" + index);
       doubleButton.classList.add("button");
       doubleButton.textContent = "Double";
       playerTableDiv.appendChild(doubleButton);
 
       playerTableDiv.appendChild(document.createTextNode(" ")); // 한 칸 공백을 추가
 
+      var splitButton = document.createElement("button");
+      splitButton.setAttribute("id", "split-button" + index);
+      splitButton.classList.add("button");
+      splitButton.textContent = "Split";
+      playerTableDiv.appendChild(splitButton);
+
+      playerTableDiv.appendChild(document.createTextNode(" ")); // 한 칸 공백을 추가
+
       var stayButton = document.createElement("button");
-      stayButton.setAttribute("id", "stay-button");
+      stayButton.setAttribute("id", "stay-button" + index);
       stayButton.classList.add("button");
       stayButton.textContent = "Stay";
       playerTableDiv.appendChild(stayButton);
@@ -207,13 +223,13 @@
     function startNewGame() {
       roundComplete = false;
       dealerHand = [];
-      playerHand = [];
+      playerHand[0] = [];
       shuffleDeck(deck); // 카드 덱 섞기
       dealCard(dealerHand); // 딜러에게 카드 1장 분배
-      dealCard(playerHand); // 플레이어에게 카드 2장 분배
-      dealCard(playerHand);
+      dealCard(playerHand[0]); // 플레이어에게 카드 2장 분배
+      dealCard(playerHand[0]);
       // 만약 플레이어가 블랙잭이라면,
-      if (isBlackjack(playerHand)) {
+      if (isBlackjack(playerHand[0])) {
           // 딜러가 블랙잭 가능성이 없으면 바로 승패 결정
           // 딜러가 블랙잭 가능성이 있으면 한 장 받고 승패 결정
         if (dealerHand[0].rank < '2' || dealerHand[0].rank > '9') {
@@ -261,17 +277,28 @@
 
     // UI 업데이트
     async function updateUI() {
-      var dealerHandTextElement = document.getElementById("dealer-hand-text");
-      var playerHandTextElement = document.getElementById("player-hand-text");
-      var dealerHandElement = document.getElementById("dealer-hand");
-      var playerHandElement = document.getElementById("player-hand");
 
-      
-      await drawHand(playerHand, playerHandElement);
+      for (var i = 0; i < playerHand.length; i++) {
+        var playerHandTextElement = document.getElementById("player-hand-text" + i);        
+        var playerHandElement = document.getElementById("player-hand" + i);
+
+        await drawHand(playerHand[i], playerHandElement);
+        playerHandTextElement.innerHTML = formatHand(playerHand[i]);
+      }
+
+      var dealerHandTextElement = document.getElementById("dealer-hand-text");      
+      var dealerHandElement = document.getElementById("dealer-hand");
+
       await drawHand(dealerHand, dealerHandElement);
-      
       dealerHandTextElement.innerHTML = formatHand(dealerHand);
-      playerHandTextElement.innerHTML = formatHand(playerHand);
+
+      for (var i = 0; i < playerHand.length; i++)
+      enableButtons(i);
+      if (disableDouble) {
+        disableDouble = false;
+        doubleButton[i].disabled = true;
+      }
+
       updateDeckCount();
       determineWinner();
     }
@@ -359,77 +386,119 @@
     }
 
 
-    // Deal 버튼 클릭 시
-    var dealButton = document.getElementById("deal-button");
-    dealButton.addEventListener("click", function() {
 
-      // 유효한 배팅 금액인지 확인
-      betAmount = parseInt(document.getElementById("betAmount").value);
-      if (isNaN(betAmount) || betAmount <= 0 || betAmount > balance) {
-        alert("올바른 배팅 금액을 입력하세요.");
-        return;
-      }
+    function addButtonEvent(index) {
 
-      enableButtons();
+      var dealButton = document.getElementById("deal-button" + index);
+      var hitButton = document.getElementById("hit-button" + index);      
+      var doubleButton = document.getElementById("double-button" + index);
+      var splitButton = document.getElementById("split-button" + index);      
+      var stayButton = document.getElementById("stay-button" + index);      
 
-      document.getElementById("player-result").textContent = "";
-      document.getElementById("dealer-result").textContent = "";      
+      // Deal 버튼 클릭 시
+      dealButton.addEventListener("click", function() {
 
-      startNewGame();
-    });
+        // 유효한 배팅 금액인지 확인
+        betAmount = parseInt(document.getElementById("betAmount").value);
+        if (isNaN(betAmount) || betAmount <= 0 || betAmount > balance) {
+          alert("올바른 배팅 금액을 입력하세요.");
+          return;
+        }
+        disableAllButtons(index);
 
-    // Hit 버튼 클릭 시
-    var hitButton = document.getElementById("hit-button");
-    hitButton.addEventListener("click", function() {
-      dealCard(playerHand);
-      doubleButton.disabled = true;
+        document.getElementById("player-result" + index).textContent = "";
+        document.getElementById("dealer-result").textContent = "";      
 
-      var playerHandValue = calculateHandValue(playerHand);
-      if (playerHandValue > 21) {
-        roundComplete = true;
-      }
-      updateUI();
-    });
+        startNewGame();
+      });
 
-    // Double 버튼 클릭 시
-    var doubleButton = document.getElementById("double-button");
-    doubleButton.addEventListener("click", function() {
-      // 현재 배팅액의 두배가 총 자산을 넘는다면 오류 메시지 띄우기
-      if (betAmount * 2 > balance) {
-        alert("자산이 부족합니다.");
-        return;
-      }
+      // Hit 버튼 클릭 시
+      hitButton.addEventListener("click", function() {
+        disableAllButtons(index);
+        disableDouble = true; // 더블버튼을 누를 수 없게
+
+        dealCard(playerHand[index]);      
+
+        var playerHandValue = calculateHandValue(playerHand[index]);
+        if (playerHandValue > 21) {
+          roundComplete = true;
+        }
+        updateUI();
+      });
+
+      // Double 버튼 클릭 시
+      doubleButton.addEventListener("click", function() {
+        // 현재 배팅액의 두배가 총 자산을 넘는다면 오류 메시지 띄우기
+        if (betAmount * 2 > balance) {
+          alert("자산이 부족합니다.");
+          return;
+        }
+        
+        betAmount = betAmount * 2;
+
+        // 한 장 Hit 후 Stay
+        // 원래 아래 주석처리된 코드를 쓰려고 했으나, drawHand 동기화 때문에 일일이 써주는 걸로 변경
+        //hitButton.click();
+        dealCard(playerHand[index]);
+        doubleButton.disabled = true;
+
+        var playerHandValue = calculateHandValue(playerHand[index]);
+        if (playerHandValue > 21) {
+          roundComplete = true;
+          updateUI();
+        }
+        else {
+          stayButton.click();
+        }
+      });
       
-      betAmount = betAmount * 2;
+      // Split 버튼 클릭 시
+      splitButton.addEventListener("click", function() {
+        // 자산 확인
 
-      // 한 장 Hit 후 Stay
-      // 원래 아래 주석처리된 코드를 쓰려고 했으나, drawHand 동기화 때문에 일일이 써주는 걸로 변경
-      //hitButton.click();
-      dealCard(playerHand);
-      doubleButton.disabled = true;
+        // 새 핸드 추가
+        playerHand.push([]);
 
-      var playerHandValue = calculateHandValue(playerHand);
-      if (playerHandValue > 21) {
+        // 스플릿을 누른 핸드의 카드 하나 빼서, 새 핸드에 추가
+        var card = playerHand[index].pop();
+        playerHand[playerHand.length-1].push(card);
+        
+        // 테이블 그리기
+        drawPlayerTable(playerHand.length-1);
+
+        // 버튼 이벤트 연결
+        addButtonEvent(playerHand.length-1);
+
+        // 스플릿 된 각각의 핸드에 hit버튼 클릭
+        hitButton.click();
+        hitButtons[playerHand.length-1].click();
+
+        // 핸드 그리기
+        //updateUI();
+      });
+
+      
+      // Stay 버튼 클릭 시
+      stayButton.addEventListener("click", function() {
+        disableAllButtons(index);
+        // 딜러의 턴 구현
+        // 승패 결정 로직 추가
+        // 승패 결과를 UI에 표시
+        dealerTurn();
         roundComplete = true;
         updateUI();
-      }
-      else {
-        stayButton.click();
-      }
-    });
+      });
+
+
+      dealButtons.push(dealButton);
+      hitButtons.push(hitButton);
+      doubleButtons.push(doubleButton);
+      splitButtons.push(splitButton);
+      stayButtons.push(stayButton);
+    }
+
     
-    // Stay 버튼 클릭 시
-    var stayButton = document.getElementById("stay-button");
-    stayButton.addEventListener("click", function() {
-      // 딜러의 턴 구현
-      // 승패 결정 로직 추가
-      // 승패 결과를 UI에 표시
-      dealerTurn();
-      roundComplete = true;
-      updateUI();
-    });
-    
-    disableButtons();
+    enableDealButton(index);
 
     // 딜러의 턴
     function dealerTurn() {
@@ -448,14 +517,14 @@
       if (roundComplete == false)
         return;
 
-      var playerHandValue = calculateHandValue(playerHand);
+      var playerHandValue = calculateHandValue(playerHand[0]);
       var dealerHandValue = calculateHandValue(dealerHand);
 
-      var playerResult = document.getElementById("player-result");
+      var playerResult = document.getElementById("player-result" + index);
       var dealerResult = document.getElementById("dealer-result");      
 
 
-      if (isBlackjack(playerHand)) {
+      if (isBlackjack(playerHand[0])) {
         if (isBlackjack(dealerHand)) {
           playerResult.innerHTML = "<span class='red'>블랙잭 !!</span>";
           dealerResult.innerHTML = "<span class='red'>블랙잭 !!</span>";
@@ -486,7 +555,7 @@
       } 
 
       updateBalance();
-      disableButtons();
+      enableDealButton(index);
     }
 
     function updateBalance() {
@@ -521,19 +590,30 @@
     }
 
     // 버튼 비활성화 함수
-    function disableButtons() {
-      dealButton.disabled = false;
-      hitButton.disabled = true;
-      doubleButton.disabled = true;
-      stayButton.disabled = true;
+    function disableAllButtons(index) {
+      dealButtons[index].disabled = true;
+      hitButtons[index].disabled = true;
+      doubleButtons[index].disabled = true;
+      splitButtons[index].disabled = true;
+      stayButtons[index].disabled = true;
+    }
+
+    // 딜 버튼 활성화 함수
+    function enableDealButton(index) {
+      dealButtons[index].disabled = false;
+      hitButtons[index].disabled = true;
+      doubleButtons[index].disabled = true;
+      splitButtons[index].disabled = true;
+      stayButtons[index].disabled = true;
     }
 
     // 버튼 활성화 함수
-    function enableButtons() {
-      dealButton.disabled = true;
-      hitButton.disabled = false;
-      doubleButton.disabled = false;
-      stayButton.disabled = false;
+    function enableButtons(index) {
+      dealButtons[index].disabled = true;
+      hitButtons[index].disabled = false;
+      doubleButtons[index].disabled = false;
+      splitButtons[index].disabled = false;
+      stayButtons[index].disabled = false;
     }
 
     // 덱에 남은 카드 개수 표시
