@@ -126,7 +126,7 @@
     var betAmount = 0;
     var roundComplete = false;
     var disableDouble = false;
-    var index = 0;
+    var redrawUI = true; // 스플릿 클릭 시 Hit버튼 두 번 연속 누르게 되는데, 이 때 마지막 Hit에서만 updateUI 하기 위함
 
     createFullDeck();
     updateDeckCount();
@@ -220,6 +220,16 @@
       playerTableGroup.appendChild(playerTableDiv);
     }
 
+    function removePlayerTable(index) {
+      // player-table을 가져옵니다.
+      var playerTableDiv = document.getElementById("player-table" + index);
+
+      // player-table이 존재하면 제거합니다.
+      if (playerTableDiv) {
+        playerTableDiv.parentNode.removeChild(playerTableDiv);
+      }
+    }
+
     function startNewGame() {
       roundComplete = false;
       dealerHand = [];
@@ -292,15 +302,17 @@
       await drawHand(dealerHand, dealerHandElement);
       dealerHandTextElement.innerHTML = formatHand(dealerHand);
 
-      for (var i = 0; i < playerHand.length; i++)
-      enableButtons(i);
-      if (disableDouble) {
-        disableDouble = false;
-        doubleButton[i].disabled = true;
-      }
+      for (var i = 0; i < playerHand.length; i++) {
+        enableButtons(i);
 
-      updateDeckCount();
-      determineWinner();
+        if (disableDouble) {
+          disableDouble = false;
+          doubleButtons[i].disabled = true;
+        }
+
+        updateDeckCount();
+        determineWinner(i);
+      }
     }
 
     // 카드 형식 변환
@@ -409,6 +421,20 @@
         document.getElementById("player-result" + index).textContent = "";
         document.getElementById("dealer-result").textContent = "";      
 
+        // 첫 핸드를 제외한 나머지 핸드 삭제
+        // 첫 테이블을 제외한 나머지 테이블을 화면에서 테이블 삭제
+        // 버튼 객체 제거
+        for (var i = 1; i < playerHand.length; i++) {
+          playerHand.pop();
+          removePlayerTable(i);
+
+          dealButtons.pop();
+          hitButtons.pop();
+          doubleButtons.pop();
+          splitButtons.pop();
+          stayButtons.pop();
+        }
+
         startNewGame();
       });
 
@@ -423,7 +449,8 @@
         if (playerHandValue > 21) {
           roundComplete = true;
         }
-        updateUI();
+        if (redrawUI)
+          updateUI();
       });
 
       // Double 버튼 클릭 시
@@ -470,7 +497,9 @@
         addButtonEvent(playerHand.length-1);
 
         // 스플릿 된 각각의 핸드에 hit버튼 클릭
+        redrawUI = false;
         hitButton.click();
+        redrawUI = true;
         hitButtons[playerHand.length-1].click();
 
         // 핸드 그리기
@@ -498,7 +527,7 @@
     }
 
     
-    enableDealButton(index);
+    enableDealButton(0);
 
     // 딜러의 턴
     function dealerTurn() {
@@ -513,18 +542,18 @@
     }
 
     // 승패 결정
-    function determineWinner() {
+    function determineWinner(index) {
       if (roundComplete == false)
         return;
 
-      var playerHandValue = calculateHandValue(playerHand[0]);
+      var playerHandValue = calculateHandValue(playerHand[index]);
       var dealerHandValue = calculateHandValue(dealerHand);
 
       var playerResult = document.getElementById("player-result" + index);
       var dealerResult = document.getElementById("dealer-result");      
 
 
-      if (isBlackjack(playerHand[0])) {
+      if (isBlackjack(playerHand[index])) {
         if (isBlackjack(dealerHand)) {
           playerResult.innerHTML = "<span class='red'>블랙잭 !!</span>";
           dealerResult.innerHTML = "<span class='red'>블랙잭 !!</span>";
